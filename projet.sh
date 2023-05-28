@@ -10,9 +10,6 @@ mail_port="$4"
 ###  Création des comptes et architecture de fichiers + envoi mails  ###
 ########################################################################
 
-#supression des dosssiers pour relancer le script
-sudo rmdir /home/shared
-
 #création du dossier shared
 sudo mkdir /home/shared
 sudo chmod 755 /home/shared
@@ -25,9 +22,6 @@ do
 	surname=$(echo "$surname" | sed 's/ //g')
 	login="${name:0:1}${surname}"
 	
-	#Suppression compte pour relancer le script
-	sudo userdel "$login"
-	sudo rm -rf "/home/$login"
 	
 	#création du compte du l'utilisateur
 	sudo useradd -m -d "/home/$login" -s /bin/bash "$login"
@@ -56,6 +50,24 @@ done
 #Création du dossier saves sur la machine distante
 ssh agirol25@10.30.48.100 "sudo mkdir /home/saves"
 ssh agirol25@10.30.48.100 "sudo chmod 766 \"/home/saves\""
+
+tail -n +2 "accounts.csv" | while IFS=';' read -r name surname mail password
+do
+	#création du login avec la première lettre du prénom et le nom de famille
+	surname=$(echo "$surname" | sed 's/ //g')
+	login="${name:0:1}${surname}"
+
+	#Compression du contenu de a_sauver et envoie sur la machine distante
+	tar -zcf "/tmp/save_${login}.tgz" -C "/home/a_sauver"
+	scp "/tmp/save_${login}.tgz" "agirol25@10.30.48.100:home/saves/save_${login}.tgz"
+
+
+	#Création programme retablir_sauvegarde
+	echo "#!/bin/bash" > "/home/retablir_sauvegarde"
+	echo "cd /home/a_sauver" >> "/home/retablir_sauvegarde"
+	echo "wget /home/saves/${login}/save_${login}.tgz" >> "/home/retablir_sauvegarde"
+	echo "tar -zxf save_${login}.tgz -C . --strip-components=1" >> "/home/retablir_sauvegarde"
+	chmod +x "/home/retablir_sauvegarde"
 
 
 ########################################################################
